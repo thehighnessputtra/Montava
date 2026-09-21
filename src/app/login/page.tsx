@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { loginUser } from "@/lib/firebase/auth";
+import { signIn } from "@/lib/api/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
@@ -23,14 +23,17 @@ export default function LoginPage() {
     setMessage("");
 
     try {
-      await loginUser(email, password);
+      await signIn({
+        email,
+        password,
+      });
 
       router.push("/dashboard");
     } catch (error) {
       console.error(error);
 
       setMessage(
-        "Email atau password tidak valid."
+        "Email atau password tidak valid.",
       );
     } finally {
       setLoading(false);

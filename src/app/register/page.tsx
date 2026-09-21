@@ -3,8 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { registerUser } from "@/lib/firebase/auth";
-import { createUserProfile } from "@/lib/firebase/user";
+import { signUp } from "@/lib/api/auth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,7 +16,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(
-    event: FormEvent<HTMLFormElement>
+    event: FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
 
@@ -25,24 +24,18 @@ export default function RegisterPage() {
     setMessage("");
 
     try {
-      const user = await registerUser(
+      await signUp({
         name,
         email,
-        password
-      );
-
-      await createUserProfile(
-        user.uid,
-        name,
-        email
-      );
+        password,
+      });
 
       router.push("/dashboard");
     } catch (error) {
       console.error(error);
 
       setMessage(
-        "Registrasi gagal. Silakan periksa kembali data kamu."
+        "Registrasi gagal. Silakan periksa kembali data kamu.",
       );
     } finally {
       setLoading(false);
@@ -104,9 +97,9 @@ export default function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Minimal 6 karakter"
+            placeholder="Minimal 8 karakter"
             className="w-full rounded-lg border p-2.5"
-            minLength={6}
+            minLength={8}
             required
           />
         </div>
