@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 
 import { useAuthStore } from "@/stores/authStore";
-import { logoutUser } from "@/lib/firebase/auth";
 
 const navItems = [
   {
@@ -61,7 +60,10 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+
   const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -74,7 +76,8 @@ export default function Navbar() {
     setLoggingOut(true);
 
     try {
-      await logoutUser();
+      await logout();
+      router.push("/login");
     } catch (error) {
       console.error("Failed to logout:", error);
       setLoggingOut(false);
@@ -95,7 +98,6 @@ export default function Navbar() {
 
   const sidebarContent = (
     <>
-      {/* Logo */}
       <div className="flex h-20 items-center border-b border-slate-200 px-6">
         <Link
           href="/dashboard"
@@ -118,7 +120,6 @@ export default function Navbar() {
         </Link>
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
           Menu
@@ -158,7 +159,6 @@ export default function Navbar() {
         </nav>
       </div>
 
-      {/* User section */}
       <div className="border-t border-slate-200 p-4">
         <div className="mb-3 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200">
@@ -167,7 +167,7 @@ export default function Navbar() {
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-slate-800">
-              {user?.displayName || "User"}
+              {user?.name || "User"}
             </p>
 
             <p className="truncate text-xs text-slate-400">
@@ -183,7 +183,10 @@ export default function Navbar() {
           className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <LogOut size={18} strokeWidth={1.8} />
-          <span>{loggingOut ? "Logging out..." : "Logout"}</span>
+
+          <span>
+            {loggingOut ? "Logging out..." : "Logout"}
+          </span>
         </button>
       </div>
     </>
@@ -191,12 +194,10 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         {sidebarContent}
       </aside>
 
-      {/* Mobile Header */}
       <header className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
         <Link
           href="/dashboard"
@@ -223,7 +224,6 @@ export default function Navbar() {
         </button>
       </header>
 
-      {/* Mobile Overlay */}
       {mobileOpen && (
         <button
           type="button"
@@ -233,10 +233,11 @@ export default function Navbar() {
         />
       )}
 
-      {/* Mobile Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white shadow-xl transition-transform duration-300 lg:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
+          mobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
         aria-hidden={!mobileOpen}
       >

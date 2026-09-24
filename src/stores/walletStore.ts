@@ -7,11 +7,8 @@ import {
   createWallet,
   getWallets,
   updateWallet,
-} from "@/lib/firebase/wallet";
-
-import { getWalletBalance } from "@/lib/firebase/balance";
-
-import { Wallet } from "@/types/wallet";
+  type Wallet,
+} from "@/lib/api/wallet";
 
 interface WalletState {
   wallets: Wallet[];
@@ -20,25 +17,21 @@ interface WalletState {
   loading: boolean;
   error: string | null;
 
-  loadWallets: (userId: string) => Promise<void>;
-
-  loadBalances: (userId: string) => Promise<void>;
+  loadWallets: () => Promise<void>;
 
   addWallet: (
-    userId: string,
     name: string,
     description: string,
     initialBalance: number,
-    currency?: string
+    currency?: string,
   ) => Promise<void>;
 
   editWallet: (
     walletId: string,
     data: {
       name?: string;
-      description?: string;
-      initialBalance?: number;
-    }
+      description?: string | null;
+    },
   ) => Promise<void>;
 
   archive: (walletId: string) => Promise<void>;
@@ -55,64 +48,43 @@ export const useWalletStore = create<WalletState>((set) => ({
   loading: false,
   error: null,
 
-  loadWallets: async (userId) => {
+  loadWallets: async () => {
     set({
       loading: true,
       error: null,
     });
 
     try {
-      const wallets = await getWallets(userId);
+      const wallets = await getWallets();
 
       set({
         wallets,
+        balances: Object.fromEntries(
+          wallets.map((wallet) => [
+            wallet.id,
+            wallet.balance,
+          ]),
+        ),
         loading: false,
       });
-
-      await useWalletStore.getState().loadBalances(userId);
     } catch (error) {
       console.error("Failed to load wallets:", error);
 
       set({
         loading: false,
-        error: "Gagal mengambil data wallet.",
-      });
-    }
-  },
-
-  loadBalances: async (userId) => {
-    try {
-      const wallets = useWalletStore.getState().wallets;
-
-      const balanceEntries = await Promise.all(
-        wallets.map(async (wallet) => {
-          const balance = await getWalletBalance(
-            userId,
-            wallet.id
-          );
-
-          return [wallet.id, balance] as const;
-        })
-      );
-
-      set({
-        balances: Object.fromEntries(balanceEntries),
-      });
-    } catch (error) {
-      console.error("Failed to load balances:", error);
-
-      set({
-        error: "Gagal menghitung saldo wallet.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengambil data wallet.",
       });
     }
   },
 
   addWallet: async (
-    userId,
     name,
     description,
     initialBalance,
-    currency = "IDR"
+    currency = "IDR",
   ) => {
     set({
       loading: true,
@@ -120,28 +92,30 @@ export const useWalletStore = create<WalletState>((set) => ({
     });
 
     try {
-      await createWallet(
-        userId,
+      const wallet = await createWallet({
         name,
         description,
         initialBalance,
-        currency
-      );
-
-      const wallets = await getWallets(userId);
-
-      set({
-        wallets,
-        loading: false,
+        currency,
       });
 
-      await useWalletStore.getState().loadBalances(userId);
+      set((state) => ({
+        wallets: [...state.wallets, wallet],
+        balances: {
+          ...state.balances,
+          [wallet.id]: wallet.balance,
+        },
+        loading: false,
+      }));
     } catch (error) {
       console.error("Failed to create wallet:", error);
 
       set({
         loading: false,
-        error: "Gagal membuat wallet.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal membuat wallet.",
       });
 
       throw error;
@@ -155,43 +129,30 @@ export const useWalletStore = create<WalletState>((set) => ({
     });
 
     try {
-      await updateWallet(walletId, data);
+      const wallet = await updateWallet(
+        walletId,
+        data,
+      );
 
       set((state) => ({
-        wallets: state.wallets.map((wallet) =>
-          wallet.id === walletId
-            ? {
-                ...wallet,
-                ...data,
-              }
-            : wallet
+        wallets: state.wallets.map((item) =>
+          item.id === walletId ? wallet : item,
         ),
+        balances: {
+          ...state.balances,
+          [wallet.id]: wallet.balance,
+        },
         loading: false,
       }));
-
-      const wallet = useWalletStore
-        .getState()
-        .wallets.find((item) => item.id === walletId);
-
-      if (wallet) {
-        const balance = await getWalletBalance(
-          wallet.userId,
-          walletId
-        );
-
-        set((state) => ({
-          balances: {
-            ...state.balances,
-            [walletId]: balance,
-          },
-        }));
-      }
     } catch (error) {
       console.error("Failed to update wallet:", error);
 
       set({
         loading: false,
-        error: "Gagal mengubah wallet.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengubah wallet.",
       });
 
       throw error;
@@ -208,13 +169,15 @@ export const useWalletStore = create<WalletState>((set) => ({
       await archiveWallet(walletId);
 
       set((state) => {
-        const balances = { ...state.balances };
+        const balances = {
+          ...state.balances,
+        };
 
         delete balances[walletId];
 
         return {
           wallets: state.wallets.filter(
-            (wallet) => wallet.id !== walletId
+            (wallet) => wallet.id !== walletId,
           ),
           balances,
           selectedWalletId:
@@ -229,7 +192,10 @@ export const useWalletStore = create<WalletState>((set) => ({
 
       set({
         loading: false,
-        error: "Gagal mengarsipkan wallet.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Gagal mengarsipkan wallet.",
       });
 
       throw error;

@@ -9,7 +9,7 @@ import Input from "@/components/ui/Input";
 
 import { useAuthStore } from "@/stores/authStore";
 import { useWalletStore } from "@/stores/walletStore";
-import { Wallet } from "@/types/wallet";
+import type { Wallet } from "@/lib/api/wallet";
 
 export default function WalletsPage() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export default function WalletsPage() {
 
   useEffect(() => {
     if (user) {
-      loadWallets(user.uid);
+      loadWallets();
     }
   }, [user, loadWallets]);
 
@@ -55,7 +55,7 @@ export default function WalletsPage() {
   const handleEdit = (wallet: Wallet) => {
     setEditingWalletId(wallet.id);
     setName(wallet.name);
-    setDescription(wallet.description);
+    setDescription(wallet.description ?? "");
     setInitialBalance(wallet.initialBalance.toString());
     clearError();
   };
@@ -93,7 +93,7 @@ export default function WalletsPage() {
       return;
     }
 
-    if (balance < 0 || Number.isNaN(balance)) {
+    if (!editingWalletId && (balance < 0 || Number.isNaN(balance))) {
       return;
     }
 
@@ -102,16 +102,9 @@ export default function WalletsPage() {
         await editWallet(editingWalletId, {
           name: name.trim(),
           description: description.trim(),
-          initialBalance: balance,
         });
       } else {
-        await addWallet(
-          user.uid,
-          name.trim(),
-          description.trim(),
-          balance,
-          "IDR",
-        );
+        await addWallet(name.trim(), description.trim(), balance, "IDR");
       }
 
       resetForm();
@@ -137,9 +130,7 @@ export default function WalletsPage() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-900">Wallet</h1>
-          <p className="mt-2 text-slate-600">
-            Kelola wallet keuangan kamu.
-          </p>
+          <p className="mt-2 text-slate-600">Kelola wallet keuangan kamu.</p>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-3">
@@ -192,9 +183,7 @@ export default function WalletsPage() {
                           style: "currency",
                           currency: wallet.currency,
                           maximumFractionDigits: 0,
-                        }).format(
-                          balances[wallet.id] ?? wallet.initialBalance,
-                        )}
+                        }).format(balances[wallet.id] ?? wallet.initialBalance)}
                       </p>
 
                       <p className="mt-1 text-xs text-slate-400">
@@ -270,17 +259,19 @@ export default function WalletsPage() {
                   />
                 </div>
 
-                <Input
-                  label="Saldo Awal"
-                  id="initialBalance"
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={initialBalance}
-                  onChange={(event) => setInitialBalance(event.target.value)}
-                  placeholder="0"
-                  required
-                />
+                {!editingWalletId && (
+                  <Input
+                    label="Saldo Awal"
+                    id="initialBalance"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={initialBalance}
+                    onChange={(event) => setInitialBalance(event.target.value)}
+                    placeholder="0"
+                    required
+                  />
+                )}
 
                 <div className="space-y-1.5">
                   <label
@@ -317,11 +308,7 @@ export default function WalletsPage() {
                     </Button>
                   )}
 
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1"
-                  >
+                  <Button type="submit" disabled={loading} className="flex-1">
                     {loading
                       ? "Menyimpan..."
                       : editingWalletId

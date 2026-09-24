@@ -40,17 +40,23 @@ export async function apiRequest<T>(
     : await response.text();
 
   if (!response.ok) {
-    throw new Error(
+    const message =
       typeof data === "object" &&
-        data !== null &&
-        "error" in data &&
-        typeof data.error === "object" &&
-        data.error !== null &&
-        "message" in data.error &&
-        typeof data.error.message === "string"
-        ? data.error.message
-        : `API request failed with status ${response.status}`,
-    );
+      data !== null &&
+      "message" in data &&
+      typeof data.message === "string"
+        ? data.message
+        : typeof data === "object" &&
+            data !== null &&
+            "error" in data &&
+            typeof data.error === "object" &&
+            data.error !== null &&
+            "message" in data.error &&
+            typeof data.error.message === "string"
+          ? data.error.message
+          : `API request failed with status ${response.status}`;
+
+    throw new Error(message);
   }
 
   return data as T;

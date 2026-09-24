@@ -6,7 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 export default function AuthInitializer() {
   const initializeAuth = useAuthStore(
-    (state) => state.initializeAuth
+    (state) => state.initializeAuth,
   );
 
   useEffect(() => {
